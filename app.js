@@ -1,11 +1,15 @@
 const fetch = require("node-fetch");
 const express = require('express');
+const { param, validationResult } = require('express-validator');
 const app = express();
 const port = 3000;
 
 const apiUrl = `https://my-json-server.typicode.com/convictional/engineering-interview/products`;
 let productData;
 
+app.use(express.json());
+
+// Read in product data (if there is a second source of product data, append to productData)
 app.listen(port, () => {
   fetch(apiUrl)
     .then(res => res.json())
@@ -23,33 +27,37 @@ app.get('/store/inventory', (req, res) => {
       inventory.push({
         "productId": product.id,
         "variantId": variant.id,
-        "stock": 10
+        "stock": 0
       });
     })
   })
   res.status(200);
-  res.send(inventory);
+  return res.json(inventory);
 });
 
 // Returns all products
+// NOTE: The API contract has conflicting information on what this route should do
+// Since '/product/:productId' handles the GET request of a single product
+// Thus this returns all products.
 app.get('/product', (req, res) => {
-  res.send(productData);
+  res.json(productData);
 });
 
 // Returns a single product
-app.get('/product/:productId', (req, res) => {
-  const productId = Number(req.params.productId);
-  if (!Number.isInteger(productId)) {
-    res.status(400);
-    res.send("Invalid ID supplied");
-  } else {
-    productData.forEach((product) => {
-      if (product.id == productId) {
-        res.status(200);
-        res.send(product);
-      }
-    })
-    res.status(404);
-    res.send("product not found");
-  }
-});
+app.get('/product/:productId',
+  param('productId').isInt(),
+  (req, res) => {
+    // Product Id should be an integer
+    if (!validationResult(req).isEmpty()) {
+      return res.status(400).send("Invalid ID supplied");
+    }
+    const productId = Number(req.params.productId);
+      productData.forEach((product) => {
+        if (product.id == productId) {
+          res.status(200);
+          return res.send(product);
+        }
+      })
+      res.status(404);
+      return res.send("product not found");
+  });
